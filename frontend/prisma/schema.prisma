@@ -1,0 +1,53 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enum for trip categories
+enum TripCategory {
+  NATURE_OUTDOORS       // Nature & Adventure 🌿🏕️
+  RECREATIONAL_AMUSEMENT // Recreational & Amusement 🎡🎢
+  NIGHTLIFE_ENTERTAINMENT // Nightlife & Entertainment 🌃🍹
+  CULTURAL_HISTORICAL    // Cultural & Historical Exploration 🏛️📜
+  FOOD_CULINARY          // Food & Culinary Experiences 🍽️🍷
+  FRIENDS_FAMILY         // Friends & Family Getaways 👨‍👩‍👧‍👦🏖️
+  CITY_URBAN             // City Trips & Urban Exploration 🏙️🚶‍♂️
+  SPORTS_ACTIVITY
+  SHOPPING_FASHION
+  WELLNESS_RELAXATION
+}
+
+model User {
+  id       String  @id @default(cuid())
+  email    String  @unique
+  password String
+  name     String?
+  trips    Trip[]
+}
+
+model Trip {
+  id        String     @id @default(cuid())
+  user      User       @relation(fields: [userId], references: [id])
+  userId    String
+  startDate DateTime
+  endDate   DateTime?
+  locations Location[]
+}
+
+model Location {
+  id       String       @id @default(cuid())
+  name     String
+  date     DateTime
+  cost     Float?       // Cost estimation (personalized)
+  rating   Int?         // Rating (1-5 stars)
+  category TripCategory // Suggested trip category
+  trip     Trip         @relation(fields: [tripId], references: [id])
+  tripId   String
+}
+

@@ -21,13 +21,21 @@ function ChangeView({ center, zoom }) {
 }
 
 export default function MainMenu() {
-  // Default position (fallback, e.g., New York City)
   const [position, setPosition] = useState([40.7128, -74.0060]);
   const [hasPosition, setHasPosition] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [username, setUsername] = useState('User'); // default fallback
 
   useEffect(() => {
+    setMounted(true);
+    
+    // Retrieve the username from localStorage
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+    }
+    
     if (navigator.geolocation) {
-      // watchPosition continuously tracks the location
       const watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const userPos = [pos.coords.latitude, pos.coords.longitude];
@@ -35,7 +43,7 @@ export default function MainMenu() {
           setHasPosition(true);
         },
         (error) => {
-          console.error('Error fetching geolocation:', error.code, error.message);
+          console.error('Error fetching geolocation:', error);
         },
         {
           enableHighAccuracy: true,
@@ -47,31 +55,45 @@ export default function MainMenu() {
     }
   }, []);
 
+  if (!mounted) {
+    return null;
+  }
+
   return (
-    <div>
-      <h2>Main Menu</h2>
-      <MapContainer
-        center={position}
-        zoom={13}
-        scrollWheelZoom={true}
-        style={{ width: '100%', height: '400px' }}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {hasPosition && (
-          <>
-            <ChangeView center={position} zoom={13} />
-            <Marker position={position}>
-              <Popup>You are here!</Popup>
-            </Marker>
-          </>
-        )}
-      </MapContainer>
+    <div style={{ padding: '1rem', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
+      <h2>Welcome back, {username}!</h2>
+      <h3>Main Menu</h3>
+      
+      {/* Map Container */}
+      <div style={{ margin: '2rem auto', width: '90%', maxWidth: '500px' }}>
+        <MapContainer
+          center={position}
+          zoom={13}
+          scrollWheelZoom={true}
+          style={{
+            width: '100%',
+            height: '300px',
+            borderRadius: '8px',
+            boxShadow: '0 4px 8px rgba(0,0,0,0.2)'
+          }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {hasPosition && (
+            <>
+              <ChangeView center={position} zoom={13} />
+              <Marker position={position}>
+                <Popup>You are here!</Popup>
+              </Marker>
+            </>
+          )}
+        </MapContainer>
+      </div>
       
       {/* Navigation Buttons */}
-      <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+      <div style={{ marginTop: '1rem' }}>
         <Link href="/trip-logging">
           <button style={{ padding: '0.5rem 1rem', fontSize: '16px', marginRight: '1rem' }}>
             Add location!
