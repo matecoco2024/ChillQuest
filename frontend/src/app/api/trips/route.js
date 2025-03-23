@@ -44,6 +44,8 @@ export async function POST(req) {
             cost: loc.cost,
             rating: loc.rating,
             category: loc.category,
+            lat: loc.lat, // save latitude
+            lon: loc.lon, // save longitude
           })),
         },
       },

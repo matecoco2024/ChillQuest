@@ -1,8 +1,7 @@
-// src/components/LocationSearch.js
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 
 // Fix marker icons (if not set globally)
@@ -14,13 +13,61 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
 });
 
-export default function LocationSearch({ initialValue, onSelect }) {
-  const [query, setQuery] = useState(initialValue || '');
-  const [suggestions, setSuggestions] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [mapCenter, setMapCenter] = useState([51.505, -0.09]); // default center
+/**
+ * A helper component that forces the map to re-center.
+ */
+function ChangeView({ center, zoom }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
+  return null;
+}
 
-  // Fetch suggestions from Nominatim when query length > 2
+/**
+ * @param {Object} props
+ * @param {{lat: number, lon: number} | null} props.coords - The lat/lon from parent
+ * @param {string} props.initialValue - The display name from parent
+ * @param {Function} props.onSelect - Called with { name, lat, lon } when the user picks a location
+ */
+export default function LocationSearch({ coords, initialValue, onSelect }) {
+  // Local state for the input query.
+  const [query, setQuery] = useState(initialValue || '');
+  // Suggestions array from Nominatim.
+  const [suggestions, setSuggestions] = useState([]);
+  // Currently "selected" location for marker display.
+  const [selected, setSelected] = useState(null);
+  // Map center state.
+  const [mapCenter, setMapCenter] = useState([51.505, -0.09]);
+
+  // Debug logging.
+  useEffect(() => {
+    console.log("LocationSearch MOUNTED");
+    return () => console.log("LocationSearch UNMOUNTED");
+  }, []);
+  useEffect(() => {
+    console.log("props.coords changed to:", coords);
+  }, [coords]);
+  useEffect(() => {
+    console.log("props.initialValue changed to:", initialValue);
+    setQuery(initialValue || '');
+  }, [initialValue]);
+
+  // When parent's coords (or initialValue) change, update the map center and marker.
+  useEffect(() => {
+    if (coords && coords.lat && coords.lon) {
+      const newCenter = [coords.lat, coords.lon];
+      setMapCenter(newCenter);
+      setSelected({
+        lat: coords.lat,
+        lon: coords.lon,
+        display_name: initialValue || `${coords.lat}, ${coords.lon}`,
+      });
+      // Notice: we do NOT call onSelect here, to avoid looping.
+    }
+  }, [coords, initialValue]);
+
+  // Fetch suggestions from Nominatim when the query length > 2.
   useEffect(() => {
     if (query.length > 2) {
       fetch(
@@ -34,41 +81,27 @@ export default function LocationSearch({ initialValue, onSelect }) {
     }
   }, [query]);
 
-  // When a suggestion is selected, update the map center and notify parent.
-  // This effect now only depends on "selected" (assuming onSelect is stable).
-  useEffect(() => {
-    if (selected) {
-      const lat = parseFloat(selected.lat);
-      const lon = parseFloat(selected.lon);
-      setMapCenter([lat, lon]);
-      onSelect({
-        name: selected.display_name,
-        lat,
-        lon,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
-
-  // Allow user to click on the map to select a location.
-  // Here we update the query with coordinates as a fallback.
+  // Handle clicks on the map.
   function LocationMarker() {
     useMapEvents({
       click(e) {
         const { lat, lng } = e.latlng;
-        // Optionally, you can implement reverse geocoding here.
         const newDisplayName = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
         setSelected({ lat, lon: lng, display_name: newDisplayName });
         setQuery(newDisplayName);
-        onSelect({
-          name: newDisplayName,
-          lat,
-          lon: lng,
-        });
-      },
+        // Call onSelect only when the user clicks the map.
+        onSelect({ name: newDisplayName, lat, lon: lng });
+      }
     });
-    return selected ? <Marker position={mapCenter} /> : null;
+    return selected ? <Marker position={[selected.lat, selected.lon]} /> : null;
   }
+
+  const handleSuggestionClick = (sug) => {
+    setSelected(sug);
+    setQuery(sug.display_name);
+    setSuggestions([]);
+    onSelect({ name: sug.display_name, lat: parseFloat(sug.lat), lon: parseFloat(sug.lon) });
+  };
 
   return (
     <div style={{ marginBottom: '1rem' }}>
@@ -102,11 +135,7 @@ export default function LocationSearch({ initialValue, onSelect }) {
             <li
               key={index}
               style={{ padding: '0.5rem', cursor: 'pointer' }}
-              onClick={() => {
-                setSelected(sug);
-                setQuery(sug.display_name);
-                setSuggestions([]);
-              }}
+              onClick={() => handleSuggestionClick(sug)}
             >
               {sug.display_name}
             </li>
@@ -114,11 +143,8 @@ export default function LocationSearch({ initialValue, onSelect }) {
         </ul>
       )}
       <div style={{ height: '200px', marginTop: '1rem' }}>
-        <MapContainer
-          center={mapCenter}
-          zoom={13}
-          style={{ height: '100%', width: '100%' }}
-        >
+        <MapContainer center={mapCenter} zoom={13} style={{ height: '100%', width: '100%' }}>
+          <ChangeView center={mapCenter} zoom={13} />
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -126,28 +152,6 @@ export default function LocationSearch({ initialValue, onSelect }) {
           <LocationMarker />
         </MapContainer>
       </div>
-      {selected && (
-        <button
-          type="button"
-          style={{
-            marginTop: '0.5rem',
-            backgroundColor: '#444',
-            color: '#fff',
-            border: 'none',
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-          }}
-          onClick={() =>
-            onSelect({
-              name: selected.display_name,
-              lat: parseFloat(selected.lat),
-              lon: parseFloat(selected.lon),
-            })
-          }
-        >
-          Select Location
-        </button>
-      )}
     </div>
   );
 }

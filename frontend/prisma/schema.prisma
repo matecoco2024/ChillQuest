@@ -41,13 +41,16 @@ model Trip {
 }
 
 model Location {
-  id       String       @id @default(cuid())
+  id       String   @id @default(cuid())
   name     String
   date     DateTime
-  cost     Float?       // Cost estimation (personalized)
-  rating   Int?         // Rating (1-5 stars)
-  category TripCategory // Suggested trip category
-  trip     Trip         @relation(fields: [tripId], references: [id])
+  cost     Float?
+  rating   Int?
+  category TripCategory
+  lat      Float?   // new field for latitude
+  lon      Float?   // new field for longitude
+  trip     Trip     @relation(fields: [tripId], references: [id])
   tripId   String
 }
+
 

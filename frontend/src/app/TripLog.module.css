@@ -1,0 +1,97 @@
+/* Overall form container */
+.form {
+  max-width: 700px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #1e1e1e; /* Dark background */
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color: #f0f0f0; /* Light text color */
+}
+
+/* Title styles */
+.title {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 1rem;
+  color: #ffffff;
+}
+
+.subTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #dddddd;
+}
+
+/* Card for each location entry */
+.card {
+  border: 1px solid #333333;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  background: #2a2a2a;
+}
+
+/* Fields styling */
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.field label {
+  font-size: 0.9rem;
+  margin-bottom: 0.3rem;
+  color: #cccccc;
+}
+
+.field input,
+.field select {
+  padding: 0.6rem;
+  border: 1px solid #555555;
+  border-radius: 4px;
+  font-size: 1rem;
+  background: #333333;
+  color: #f0f0f0;
+}
+
+/* Button group layout */
+.btnGroup {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+/* Button styling */
+.addBtn,
+.submitBtn,
+.removeBtn {
+  border: none;
+  color: #fff;
+  padding: 0.75rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.3s ease;
+}
+
+.addBtn,
+.submitBtn {
+  background: #0070f3;
+}
+
+.addBtn:hover,
+.submitBtn:hover {
+  background: #005bb5;
+}
+
+.removeBtn {
+  background: #d32f2f;
+  margin-top: 0.5rem;
+}
+
+.removeBtn:hover {
+  background: #b71c1c;
+}

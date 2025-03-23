@@ -17,6 +17,7 @@ RUN ls -la /app/prisma
 # Generate the Prisma client explicitly after copying all files
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
+
 # Expose Next.js default port
 EXPOSE 3000
 

@@ -1,10 +1,10 @@
-// src/components/TripLog.js
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import LocationSearch from '@/components/LocationSearch';
 import StarRating from './StarRating';
+import styles from '../app/TripLog.module.css';
 
 export default function TripLog() {
   const router = useRouter();
@@ -12,59 +12,97 @@ export default function TripLog() {
 
   const [trip, setTrip] = useState({
     locations: [
-      { name: '', date: today, cost: '', rating: 0, category: '', coordinates: null },
+      { 
+        name: '', 
+        date: today, 
+        cost: '', 
+        rating: 0, 
+        category: '', 
+        coordinates: null 
+      },
     ],
   });
 
-  // Memoize the callback to keep its reference stable
+  // On mount, fetch the user's geolocation and update the first location.
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          console.log("TripLog geolocation:", { latitude, longitude });
+          setTrip((prev) => {
+            const updatedLocations = [...prev.locations];
+            updatedLocations[0] = {
+              ...updatedLocations[0],
+              coordinates: { lat: latitude, lon: longitude },
+              name: `Current Location (${latitude.toFixed(3)}, ${longitude.toFixed(3)})`,
+            };
+            return { ...prev, locations: updatedLocations };
+          });
+        },
+        (error) => {
+          console.error("Error retrieving geolocation:", error);
+        }
+      );
+    } else {
+      console.error("Geolocation is not supported by your browser.");
+    }
+  }, []);
+
+  // When the user selects a location in LocationSearch, update that location.
   const handleLocationSelect = useCallback((index, selected) => {
+    console.log("TripLog handleLocationSelect:", { index, selected });
     setTrip((prev) => {
       const updatedLocations = prev.locations.map((location, i) =>
         i === index
-          ? { ...location, name: selected.name, coordinates: { lat: selected.lat, lon: selected.lon } }
+          ? { 
+              ...location, 
+              name: selected.name, 
+              coordinates: { lat: selected.lat, lon: selected.lon } 
+            }
           : location
       );
       return { ...prev, locations: updatedLocations };
     });
   }, []);
 
-  // Update individual location fields by index (for non-location-search fields)
-  const handleLocationChange = (index, e) => {
-    const { name, value } = e.target;
-    const updatedLocations = trip.locations.map((location, i) =>
-      i === index ? { ...location, [name]: value } : location
-    );
-    setTrip({ ...trip, locations: updatedLocations });
-  };
-
-  // Update rating for a specific location
-  const handleRatingChange = (index, newRating) => {
-    const updatedLocations = trip.locations.map((location, i) =>
-      i === index ? { ...location, rating: newRating } : location
-    );
-    setTrip({ ...trip, locations: updatedLocations });
-  };
-
-  // Add a new location entry
-  const addLocation = () => {
-    setTrip({
-      ...trip,
-      locations: [
-        ...trip.locations,
-        { name: '', date: today, cost: '', rating: 0, category: '', coordinates: null },
-      ],
+  // Helper to update other fields (date, cost, rating, category).
+  const handleFieldChange = (index, fieldName, value) => {
+    setTrip((prev) => {
+      const updatedLocations = prev.locations.map((loc, i) =>
+        i === index ? { ...loc, [fieldName]: value } : loc
+      );
+      return { ...prev, locations: updatedLocations };
     });
   };
 
-  // Remove a location entry (if more than one)
-  const removeLocation = (index) => {
-    const updatedLocations = trip.locations.filter((_, i) => i !== index);
-    setTrip({ ...trip, locations: updatedLocations });
+  const addLocation = () => {
+    setTrip((prev) => ({
+      ...prev,
+      locations: [
+        ...prev.locations,
+        { 
+          name: '', 
+          date: today, 
+          cost: '', 
+          rating: 0, 
+          category: '', 
+          coordinates: null 
+        },
+      ],
+    }));
   };
 
+  const removeLocation = (index) => {
+    setTrip((prev) => {
+      const updatedLocations = prev.locations.filter((_, i) => i !== index);
+      return { ...prev, locations: updatedLocations };
+    });
+  };
+
+  // Form submit logic.
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Prepare the payload (converting cost to number when provided)
     const payload = {
       locations: trip.locations.map((loc) => ({
         name: loc.name,
@@ -72,17 +110,17 @@ export default function TripLog() {
         cost: loc.cost ? parseFloat(loc.cost) : null,
         rating: loc.rating,
         category: loc.category,
-        // Coordinates could be sent if your database schema is updated accordingly
-        // coordinates: loc.coordinates,
+        // coordinates: loc.coordinates, // Uncomment if your API supports saving coordinates.
       })),
     };
-
+    console.log("Submitting payload:", payload);
+    
     const res = await fetch('/api/trips', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
+  
     if (res.ok) {
       console.log("Trip logged successfully!");
       router.push('/location-list');
@@ -92,118 +130,81 @@ export default function TripLog() {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        padding: '2rem',
-        maxWidth: '600px',
-        margin: '0 auto',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-      }}
-    >
-      <h1>Log a Trip</h1>
-      <h2>Locations</h2>
+    <form onSubmit={handleSubmit} className={styles.form}>
+      <h1 className={styles.title}>Log a Trip</h1>
+      <h2 className={styles.subTitle}>Locations</h2>
       {trip.locations.map((location, index) => (
-        <div
-          key={index}
-          style={{
-            border: '1px solid #ccc',
-            padding: '1rem',
-            borderRadius: '8px',
-          }}
-        >
-          {/* Use the LocationSearch component for the location input */}
+        <div key={index} className={styles.card}>
+          {/* Pass the parent's coordinates and name to LocationSearch */}
           <LocationSearch
+            coords={location.coordinates}
             initialValue={location.name}
             onSelect={(selected) => handleLocationSelect(index, selected)}
           />
-          <div>
-            <label>
-              Date:
-              <input
-                type="date"
-                name="date"
-                value={location.date}
-                onChange={(e) => handleLocationChange(index, e)}
-                required
-                style={{ marginLeft: '0.5rem' }}
-              />
-            </label>
+          <div className={styles.field}>
+            <label>Date:</label>
+            <input
+              type="date"
+              name="date"
+              value={location.date}
+              onChange={(e) => handleFieldChange(index, 'date', e.target.value)}
+              required
+            />
           </div>
-          <div>
-            <label>
-              Cost (€):
-              <input
-                type="number"
-                name="cost"
-                value={location.cost}
-                onChange={(e) => handleLocationChange(index, e)}
-                step="0.01"
-                placeholder="e.g. 20.00"
-                style={{ marginLeft: '0.5rem' }}
-              />
-            </label>
+          <div className={styles.field}>
+            <label>Cost (€):</label>
+            <input
+              type="number"
+              name="cost"
+              value={location.cost}
+              onChange={(e) => handleFieldChange(index, 'cost', e.target.value)}
+              step="0.01"
+              placeholder="e.g. 20.00"
+            />
           </div>
-          <div>
-            <label>
-              Rating:
-              <StarRating
-                rating={location.rating}
-                onChange={(newRating) => handleRatingChange(index, newRating)}
-              />
-            </label>
+          <div className={styles.field}>
+            <label>Rating:</label>
+            <StarRating
+              rating={location.rating}
+              onChange={(newRating) => handleFieldChange(index, 'rating', newRating)}
+            />
           </div>
-          <div>
-            <label>
-              Category:
-              <select
-                name="category"
-                value={location.category}
-                onChange={(e) => handleLocationChange(index, e)}
-                required
-                style={{ marginLeft: '0.5rem' }}
-              >
-                <option value="">Select category</option>
-                <option value="NATURE_OUTDOORS">Nature & Outdoors</option>
-                <option value="RECREATIONAL_AMUSEMENT">
-                  Recreational & Amusement
-                </option>
-                <option value="NIGHTLIFE_ENTERTAINMENT">
-                  Nightlife & Entertainment
-                </option>
-                <option value="CULTURAL_HISTORICAL">
-                  Cultural & Historical
-                </option>
-                <option value="FOOD_CULINARY">Food & Culinary</option>
-                <option value="FRIENDS_FAMILY">Friends & Family</option>
-                <option value="CITY_URBAN">City & Urban</option>
-                <option value="SPORTS_ACTIVITY">Sports Activity</option>
-                <option value="SHOPPING_FASHION">
-                  Shopping & Fashion
-                </option>
-                <option value="WELLNESS_RELAXATION">
-                  Wellness & Relaxation
-                </option>
-              </select>
-            </label>
+          <div className={styles.field}>
+            <label>Category:</label>
+            <select
+              name="category"
+              value={location.category}
+              onChange={(e) => handleFieldChange(index, 'category', e.target.value)}
+              required
+            >
+              <option value="">Select category</option>
+              <option value="NATURE_OUTDOORS">Nature & Outdoors</option>
+              <option value="RECREATIONAL_AMUSEMENT">Recreational & Amusement</option>
+              <option value="NIGHTLIFE_ENTERTAINMENT">Nightlife & Entertainment</option>
+              <option value="CULTURAL_HISTORICAL">Cultural & Historical</option>
+              <option value="FOOD_CULINARY">Food & Culinary</option>
+              <option value="FRIENDS_FAMILY">Friends & Family</option>
+              <option value="CITY_URBAN">City & Urban</option>
+              <option value="SPORTS_ACTIVITY">Sports Activity</option>
+              <option value="SHOPPING_FASHION">Shopping & Fashion</option>
+              <option value="WELLNESS_RELAXATION">Wellness & Relaxation</option>
+            </select>
           </div>
           {trip.locations.length > 1 && (
-            <button
-              type="button"
-              onClick={() => removeLocation(index)}
-              style={{ marginTop: '0.5rem' }}
-            >
+            <button type="button" className={styles.removeBtn} onClick={() => removeLocation(index)}>
               Remove Location
             </button>
           )}
         </div>
       ))}
-      <button type="button" onClick={addLocation}>
-        Add Another Location
-      </button>
-      <button type="submit">Log Trip</button>
+      <div className={styles.btnGroup}>
+        <button type="button" className={styles.addBtn} onClick={addLocation}>
+          Add Another Location
+        </button>
+        <button type="submit" className={styles.submitBtn}>
+          Log Trip
+        </button>
+      </div>
     </form>
   );
 }
