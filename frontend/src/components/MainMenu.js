@@ -13,10 +13,12 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.3/dist/images/marker-shadow.png',
 });
 
-// Component to update the map view when the position changes
+// Component to update the map view when the position changes.
 function ChangeView({ center, zoom }) {
   const map = useMap();
-  map.setView(center, zoom);
+  useEffect(() => {
+    map.setView(center, zoom);
+  }, [center, zoom, map]);
   return null;
 }
 
@@ -26,10 +28,15 @@ export default function MainMenu() {
   const [mounted, setMounted] = useState(false);
   const [username, setUsername] = useState('User'); // default fallback
 
+  // Travel tools state.
+  const [currencyRate, setCurrencyRate] = useState(null);
+  const [localPhrase, setLocalPhrase] = useState('');
+  const [weatherForecast, setWeatherForecast] = useState('');
+
   useEffect(() => {
     setMounted(true);
     
-    // Retrieve the username from localStorage
+    // Retrieve the username from localStorage.
     const storedUsername = localStorage.getItem('username');
     if (storedUsername) {
       setUsername(storedUsername);
@@ -37,10 +44,69 @@ export default function MainMenu() {
     
     if (navigator.geolocation) {
       const watchId = navigator.geolocation.watchPosition(
-        (pos) => {
-          const userPos = [pos.coords.latitude, pos.coords.longitude];
-          setPosition(userPos);
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+          setPosition([latitude, longitude]);
           setHasPosition(true);
+          
+          // Fetch actual currency conversion rate (EUR to USD) using exchangerate.host.
+          try {
+            const currencyRes = await fetch(`https://api.exchangerate.host/latest?base=EUR&symbols=USD`);
+            const currencyData = await currencyRes.json();
+            if (currencyData && currencyData.rates && currencyData.rates.USD) {
+              setCurrencyRate(currencyData.rates.USD);
+            } else {
+              setCurrencyRate("N/A");
+            }
+          } catch (error) {
+            console.error("Error fetching currency rate:", error);
+            setCurrencyRate("N/A");
+          }
+          
+          // Reverse geocode to get country code using Nominatim.
+          try {
+            const revRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+            const revData = await revRes.json();
+            const country = revData.address.country_code; // e.g., 'fr', 'nl', etc.
+            if (country === 'fr') {
+              setLocalPhrase("Bonjour!");
+            } else if (country === 'nl') {
+              setLocalPhrase("Hoi!");
+            } else if (country === 'es') {
+              setLocalPhrase("¡Hola!");
+            } else {
+              setLocalPhrase("Hello!");
+            }
+          } catch (error) {
+            console.error("Error reverse geocoding:", error);
+            setLocalPhrase("Hello!");
+          }
+          
+          // Fetch current weather from OpenWeatherMap.
+          try {
+            // Use fallback key if environment variable not set.
+            const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY || '15ab8d5a8a68060257b990c795d5de2b';
+            if (!apiKey) {
+              throw new Error("Missing OpenWeather API key");
+            }
+            const weatherRes = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&units=metric&appid=${apiKey}`);
+            const weatherData = await weatherRes.json();
+            if (
+              weatherData &&
+              weatherData.weather &&
+              weatherData.weather.length > 0 &&
+              weatherData.main
+            ) {
+              const description = weatherData.weather[0].description;
+              const temp = weatherData.main.temp;
+              setWeatherForecast(`${description}, ${temp}°C`);
+            } else {
+              setWeatherForecast("Unavailable");
+            }
+          } catch (error) {
+            console.error("Error fetching weather:", error);
+            setWeatherForecast("Unavailable");
+          }
         },
         (error) => {
           console.error('Error fetching geolocation:', error);
@@ -90,6 +156,28 @@ export default function MainMenu() {
             </>
           )}
         </MapContainer>
+      </div>
+      
+      {/* Travel Tools Section */}
+      <div style={{
+          margin: '2rem auto',
+          maxWidth: '500px',
+          textAlign: 'left',
+          background: '#2a2a2a',
+          padding: '1.5rem',
+          borderRadius: '8px',
+          boxShadow: '0 2px 6px rgba(0, 0, 0, 0.5)'
+        }}>
+        <h3 style={{ color: '#f0f0f0', marginBottom: '1rem' }}>Travel Tools</h3>
+        <div style={{ marginBottom: '1rem', color: '#f0f0f0' }}>
+          <strong>Currency Converter:</strong> 1 EUR = {currencyRate ? `${currencyRate} USD` : "Loading..."}
+        </div>
+        <div style={{ marginBottom: '1rem', color: '#f0f0f0' }}>
+          <strong>Local Phrase:</strong> {localPhrase || "Loading..."}
+        </div>
+        <div style={{ marginBottom: '1rem', color: '#f0f0f0' }}>
+          <strong>Weather Forecast:</strong> {weatherForecast || "Loading..."}
+        </div>
       </div>
       
       {/* Navigation Buttons */}
